@@ -58,7 +58,7 @@ export default eventHandler(async (event) => {
   const homeURL = runtimeConfig.public.homeURL || runtimeConfig.homeURL
   const hasStorage = event.context.selfHosted || event.context.cloudflare
 
-  if (event.path === '/' && homeURL)
+  if (parsePath(event.path).pathname === '/' && homeURL)
     return sendRedirect(event, homeURL)
 
   const { notFoundRedirect } = useRuntimeConfig(event)

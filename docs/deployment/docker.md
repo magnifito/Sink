@@ -31,6 +31,24 @@ normal upgrades.
 
 `GET /_health` checks database access. It returns no private data.
 
+## Redirect the homepage
+
+To redirect visitors to your main website instead of showing the Sink homepage,
+add this setting to `.env.docker`:
+
+```dotenv
+NUXT_PUBLIC_HOME_URL=https://example.com
+```
+
+Apply configuration changes with `docker compose --env-file .env.docker up -d`.
+No image rebuild is needed for this setting. Requests to `/`, including those
+with query strings, return a `302` redirect to the configured URL. Query strings
+are not forwarded. Leave the setting empty to show the default homepage.
+
+Open `/dashboard` directly to sign in. Short links keep their normal behavior.
+This setting hides the public greeting; it does not hide the dashboard route or
+replace site-token authentication.
+
 ## Run on your own server
 
 1. Install Docker Engine and Docker Compose on the server.
