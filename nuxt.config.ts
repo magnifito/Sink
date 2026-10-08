@@ -1,7 +1,10 @@
 import { randomBytes } from 'node:crypto'
 import process from 'node:process'
+import { fileURLToPath } from 'node:url'
 import tailwindcss from '@tailwindcss/vite'
 import { currentLocales } from './i18n/i18n'
+
+const selfHosted = process.env.SINK_RUNTIME === 'node'
 
 // https://nuxt.com/docs/api/configuration/nuxt-config
 export default defineNuxtConfig({
@@ -16,6 +19,9 @@ export default defineNuxtConfig({
   css: ['@/assets/css/tailwind.css'],
   runtimeConfig: {
     siteToken: process.env.NUXT_SITE_TOKEN || randomBytes(32).toString('base64url'),
+    dataDir: './data',
+    analyticsRetentionDays: 90,
+    trustProxy: false,
     cfAccessTeamDomain: '',
     cfAccessAud: '',
     redirectStatusCode: '301',
@@ -80,7 +86,9 @@ export default defineNuxtConfig({
   },
   compatibilityDate: '2026-07-13',
   nitro: {
-    preset: import.meta.env.CF_PAGES !== '1' ? 'cloudflare-module' : undefined,
+    preset: selfHosted ? 'node-server' : import.meta.env.CF_PAGES !== '1' ? 'cloudflare-module' : undefined,
+    plugins: selfHosted ? [fileURLToPath(new URL('./server/runtime/node/plugin.ts', import.meta.url))] : [],
+    serverAssets: selfHosted ? [{ baseName: 'migrations', dir: fileURLToPath(new URL('./drizzle', import.meta.url)) }] : [],
     experimental: {
       openAPI: true,
     },
@@ -89,7 +97,7 @@ export default defineNuxtConfig({
       production: 'runtime',
       meta: {
         title: 'Sink API',
-        description: 'A Simple / Speedy / Secure Link Shortener with Analytics, 100% run on Cloudflare.\n\n[Return to this Sink instance](/) · [Read the documentation](https://docs.sink.cool)',
+        description: 'A Simple / Speedy / Secure Link Shortener with Analytics.\n\n[Return to this Sink instance](/) · [Read the documentation](https://docs.sink.cool)',
       },
       route: '/_docs/openapi.json',
       ui: {

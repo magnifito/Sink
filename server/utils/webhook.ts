@@ -167,5 +167,5 @@ export function queueLinkClickedWebhook(event: H3Event, click: WebhookClickConte
     click,
     link,
   })
-  scheduleWebhookDelivery(event.context.cloudflare.context, delivery)
+  scheduleWebhookDelivery(event.context.selfHosted ?? event.context.cloudflare.context, delivery)
 }

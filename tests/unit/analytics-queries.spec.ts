@@ -50,7 +50,7 @@ vi.mock('../../server/utils/access-log', async () => {
   }
 })
 
-const event = {} as H3Event
+const event = { context: {} } as H3Event
 const filters: FilterQuery = { slug: 'abc' }
 
 describe('analytics query builders', () => {

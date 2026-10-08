@@ -39,7 +39,7 @@ export async function readCompletedLinkMigrationMarker(env: Cloudflare.Env): Pro
  * callers never operate on a store that is not yet authoritative.
  */
 export async function assertLinkStoreReady(event: H3Event): Promise<void> {
-  if (await readCompletedLinkMigrationMarker(event.context.cloudflare.env))
+  if (await readCompletedLinkMigrationMarker(getStorage(event)))
     return
 
   throw createError({
@@ -50,7 +50,7 @@ export async function assertLinkStoreReady(event: H3Event): Promise<void> {
 
 export async function insertMigratedKvLink(event: H3Event, link: Link, effectiveExpiresAt?: number): Promise<boolean> {
   const values = buildD1LinkValues(event, link, effectiveExpiresAt)
-  const { DB } = event.context.cloudflare.env
+  const { DB } = getStorage(event)
   const insert = DB.prepare(`
     INSERT INTO links (
       slug, id, url, comment, created_at, updated_at, expiration, title,

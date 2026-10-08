@@ -61,7 +61,7 @@ function filteredQuery(query: FilterQuery, event: H3Event) {
   // historical reasons; the limit it never reads is filled with a placeholder.
   const filter = buildAnalyticsFilter({ ...query, limit: 0 })
   const { dataset } = useRuntimeConfig(event)
-  const analyticsQuery = createAnalyticsQuery(dataset)
+  const analyticsQuery = createAnalyticsQuery(event.context.selfHosted ? 'sink_events' : dataset)
   return filter ? analyticsQuery.where(filter) : analyticsQuery
 }
 

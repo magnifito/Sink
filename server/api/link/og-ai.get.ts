@@ -63,8 +63,7 @@ export default eventHandler(async (event) => {
     locale: z.string().optional(),
   }).parse)
   const { url } = query
-  const { cloudflare } = event.context
-  const { AI } = cloudflare.env
+  const { AI } = getStorage(event)
 
   if (!AI) {
     throw createError({ status: 501, statusText: 'AI not enabled' })

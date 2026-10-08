@@ -2,6 +2,9 @@ import type { H3Event } from 'h3'
 import type { Compilable } from 'kysely'
 
 export function useWAE(event: H3Event, query: Compilable) {
+  if (event.context.selfHosted)
+    return event.context.selfHosted.queryAnalytics(compileAnalyticsQuery(query))
+
   const { cfAccountId, cfApiToken } = useRuntimeConfig(event)
   if (!cfAccountId || !cfApiToken)
     return { data: [] }

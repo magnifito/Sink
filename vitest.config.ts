@@ -1,6 +1,6 @@
 import { cloudflareTest, readD1Migrations } from '@cloudflare/vitest-pool-workers'
 import { loadEnv } from 'vite'
-import { defineConfig } from 'vitest/config'
+import { configDefaults, defineConfig } from 'vitest/config'
 
 interface HandledValidationError {
   statusCode: 400
@@ -30,6 +30,8 @@ function isHandledValidationError(error: unknown): error is HandledValidationErr
 export default defineConfig(async ({ mode }) => ({
   plugins: [
     cloudflareTest({
+      // Tests mock Workers AI; do not open a billable remote AI session.
+      remoteBindings: false,
       wrangler: {
         configPath: './wrangler.jsonc',
       },
@@ -42,6 +44,7 @@ export default defineConfig(async ({ mode }) => ({
     }),
   ],
   test: {
+    exclude: [...configDefaults.exclude, 'tests/node/**'],
     env: loadEnv(mode, process.cwd(), ''),
     isolate: false,
     maxWorkers: 1,

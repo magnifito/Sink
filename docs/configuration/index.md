@@ -9,8 +9,9 @@ All values are strings. Boolean switches use `true` unless noted.
 
 **What most people need**
 
-- Always: `NUXT_SITE_TOKEN`, D1 (`DB`), KV (`KV`), and their IDs
-- For analytics: `ANALYTICS` binding + `NUXT_CF_ACCOUNT_ID` + `NUXT_CF_API_TOKEN` — see [Analytics](/features/analytics)
+- Cloudflare: `NUXT_SITE_TOKEN`, D1 (`DB`), KV (`KV`), and their IDs
+- Cloudflare analytics: `ANALYTICS` binding + `NUXT_CF_ACCOUNT_ID` + `NUXT_CF_API_TOKEN` — see [Analytics](/features/analytics)
+- Docker: a runtime `NUXT_SITE_TOKEN` of at least 32 characters and persistent storage — see [Docker](/deployment/docker)
 - Everything else is optional
 
 ## Where to put variables
@@ -28,6 +29,23 @@ Trigger a new deploy so the app rebuilds. On Workers, “both” values must mat
 :::
 
 Names starting with `DEPLOY_*` are only for connecting resources during deploy. They rewrite placeholders in tracked `wrangler.jsonc` into gitignored `wrangler.deploy.jsonc` — set `DEPLOY_*` in `.env` or Cloudflare build variables; do not hardcode production IDs in `wrangler.jsonc`. Names starting with `NUXT_*` configure the running app.
+
+## Docker runtime settings
+
+The Dockerfile selects `SINK_RUNTIME=node` at build time. Other builds keep the
+default Cloudflare target. Set runtime variables in `.env.docker` when using the
+provided Compose file. The image excludes local environment files.
+
+| Variable                        | Default                     | Purpose                                                     |
+| ------------------------------- | --------------------------- | ----------------------------------------------------------- |
+| `NUXT_DATA_DIR`                 | `./data`; `/data` in Docker | Persistent SQLite and file storage directory                |
+| `NUXT_ANALYTICS_RETENTION_DAYS` | `90`                        | Positive integer controlling local click retention          |
+| `NUXT_TRUST_PROXY`              | `false`                     | Accept the forwarded client IP from a trusted reverse proxy |
+
+The shared runtime settings below still apply where the feature exists. Docker
+does not require Cloudflare binding IDs or analytics credentials. Node does not
+provide Workers AI or IP location data. The Compose file disables preview mode
+and sets the data directory to its persistent volume.
 
 ## Cloudflare bindings
 

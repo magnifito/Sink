@@ -5,7 +5,9 @@ description: How Sink handles the dashboard, API, redirects, storage, and analyt
 
 # Architecture
 
-Sink runs the dashboard, API, and short-link redirects on Cloudflare Workers or Pages.
+Sink runs the dashboard, API, and short-link redirects on Cloudflare Workers or
+Pages by default. An optional [Docker deployment](/deployment/docker) runs the
+same app on Node.js with local storage.
 
 ## What happens when someone opens a short link
 
@@ -29,3 +31,20 @@ Sink runs the dashboard, API, and short-link redirects on Cloudflare Workers or 
 After the first deploy, open **Dashboard → Links** once so Sink can finish storage setup. Until then, most link APIs fail with “storage not ready” (HTTP 423). See [storage setup / migration](/storage/kv-to-d1).
 
 R2 and AI are optional extras. Start with [Getting Started](./getting-started).
+
+## Docker runtime
+
+`SINK_RUNTIME=node` selects the Node server during the build. This includes the
+Node storage adapter and database migrations; the default Cloudflare build does
+not include the Node adapter. API routes use `getStorage(event)` to select the
+current runtime's bindings while retaining the existing link validation and
+Drizzle queries.
+
+The Node adapter runs those SQLite queries locally, including transactional
+batches. It skips KV caching because reads already use the local database. The
+database also stores click records and an index of uploaded files. A persistent
+volume holds the database and files. Startup applies pending migrations before
+requests can access storage; invalid configuration stops the process.
+
+Node does not provide Workers AI or IP location data. See the Docker guide for
+feature differences, retention, backups, and the single-instance storage limit.

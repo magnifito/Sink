@@ -20,7 +20,7 @@ function routeFromRelativePath(relativePath: string): string {
 
 export default defineConfig({
   title: 'Sink Documentation',
-  description: 'A Simple, Speedy, Secure, and Serverless Link Shortener with Analytics, Running Entirely on Cloudflare.',
+  description: 'A Simple, Speedy, Secure Link Shortener with Analytics. Runs on Cloudflare or Docker.',
   cleanUrls: true,
   lastUpdated: true,
   sitemap: {
@@ -51,6 +51,7 @@ export default defineConfig({
               { text: 'Architecture', link: '/guide/architecture' },
             ] },
             { text: 'Deployment', items: [
+              { text: 'Docker', link: '/deployment/docker' },
               { text: 'Cloudflare Workers', link: '/deployment/workers' },
               { text: 'Cloudflare Pages', link: '/deployment/pages' },
               { text: 'Upgrading Sink', link: '/deployment/upgrading' },
