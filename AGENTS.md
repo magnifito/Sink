@@ -48,6 +48,7 @@ pnpm test --run -t 'creates new link'     # tests matching a name
 - Use `useAPI()` for authenticated internal APIs, mutations, polling, searches, and abortable user flows. Reserve Nuxt `useFetch` for read-only data where AsyncData caching, deduplication, or shared state provides a concrete benefit.
 - D1 is the authoritative link store. KV is a write-through read cache and the temporary source for pre-D1 links until D1 records a completed KV-to-D1 migration run. Route link persistence through `server/utils/link-store.ts`; direct KV-only writes can lose authoritative data.
 - Link validation has separate create, edit, import, stored, and legacy-KV contracts in `shared/schemas/link.ts`. Do not merge them or remove legacy KV parsing without explicit confirmation that every deployed instance has completed KV-to-D1 migration.
+- Docker uses `SINK_RUNTIME=node` at build time. Its runtime adapter lives in `server/runtime/node/`; access bindings through `getStorage(event)`. SQLite is authoritative in this mode, KV caching is bypassed, and `/data` must be a persistent local volume. Keep Node-only imports outside the Worker bundle.
 - `server/middleware/1.redirect.ts` intentionally runs before `2.auth.ts`: public short-link resolution happens first, while every `/api/**` request is authenticated by site token or allowed Cloudflare Access identity.
 - Cloudflare bindings are declared in `wrangler.jsonc`: `DB`, `KV`, `ANALYTICS`, `AI`, `R2`, and `ASSETS`. Regenerate `worker-configuration.d.ts` with `pnpm gen:types` after changing bindings.
 - The realtime dashboard is intentionally pseudo-live: it polls analytics every 10 seconds, then replays the initial and newly discovered access events through a bounded client-side queue at roughly one event per second. Pausing stops polling, queue replay, and WebGL motion; it is not an SSE or WebSocket stream.
@@ -68,6 +69,7 @@ pnpm db:migrate:remote   # mutates the configured remote D1 database
 
 - Vitest uses `@cloudflare/vitest-pool-workers`, `wrangler.jsonc`, one Worker, `isolate: false`, and `maxWorkers: 1`. Storage is shared across the run.
 - Worker tests execute `.output/server/index.mjs` from `wrangler.jsonc`. Run `pnpm build` after server changes before the final test run, or tests may exercise stale output.
+- Node adapter tests use `pnpm test:node`. Build with `pnpm build:node`, then run `pnpm test:node:integration` for the production Node API and restart checks. The Docker setup and feature differences are documented in `docs/deployment/docker.md`.
 - Use unique slugs and cleanup helpers from `tests/utils.ts`; do not make state-sharing suites concurrent.
 - `tests/setup.ts` applies all D1 migrations before tests. Update migrations, not ad hoc test setup, when schema changes.
 

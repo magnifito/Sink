@@ -22,7 +22,9 @@ node_modules
 .env
 .env.*
 !.env.example
+!.env.docker.example
 .wrangler
+/data/
 wrangler.deploy.jsonc
 site
 cache

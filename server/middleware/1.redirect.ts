@@ -56,9 +56,9 @@ export default eventHandler(async (event) => {
   const { linkProxyEnabled } = runtimeConfig.public
   // runtimeConfig.homeURL reads the deprecated NUXT_HOME_URL at runtime.
   const homeURL = runtimeConfig.public.homeURL || runtimeConfig.homeURL
-  const { cloudflare } = event.context
+  const hasStorage = event.context.selfHosted || event.context.cloudflare
 
-  if (event.path === '/' && homeURL)
+  if (parsePath(event.path).pathname === '/' && homeURL)
     return sendRedirect(event, homeURL)
 
   const { notFoundRedirect } = useRuntimeConfig(event)
@@ -67,7 +67,7 @@ export default eventHandler(async (event) => {
     return
   }
 
-  if (slug && !reserveSlug.includes(slug) && slugRegex.test(slug) && cloudflare) {
+  if (slug && !reserveSlug.includes(slug) && slugRegex.test(slug) && hasStorage) {
     let link: Link | null = null
 
     const lowerCaseSlug = slug.toLowerCase()
@@ -95,7 +95,7 @@ export default eventHandler(async (event) => {
       const buildTarget = (url: string) => shouldRedirectWithQuery ? withQuery(url, query) : url
 
       let targetUrl = link.url
-      const country = event.context.cloudflare?.request?.cf?.country
+      const country = getRequestGeo(event)?.country
       if (country && typeof country === 'string' && link.geo?.[country.toUpperCase()]) {
         targetUrl = link.geo[country.toUpperCase()]!
       }

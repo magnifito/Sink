@@ -58,7 +58,7 @@ function withoutQuery(url: string): string {
 }
 
 function getDatabase(event: H3Event) {
-  return drizzle(event.context.cloudflare.env.DB)
+  return drizzle(getStorage(event).DB)
 }
 
 function activeCondition(now = Math.floor(Date.now() / 1000)) {

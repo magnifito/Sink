@@ -13,6 +13,7 @@ import {
 } from 'ua-parser-js/extensions'
 import { parseURL } from 'ufo'
 import { getFlag } from '#shared/utils/flag'
+import { getRequestGeo, getStorage } from './storage'
 
 function toBlobNumber(blob: string) {
   return +blob.replace(/\D/g, '')
@@ -117,7 +118,9 @@ function getCountryName(country?: string): string {
 }
 
 export function collectAccessLog(event: H3Event): AccessLogResult | undefined {
-  const ip = getHeader(event, 'cf-connecting-ip') || getHeader(event, 'x-real-ip') || getRequestIP(event, { xForwardedFor: true })
+  const ip = event.context.selfHosted
+    ? getRequestIP(event, { xForwardedFor: useRuntimeConfig(event).trustProxy })
+    : getHeader(event, 'cf-connecting-ip') || getHeader(event, 'x-real-ip') || getRequestIP(event, { xForwardedFor: true })
 
   const { host: referer } = parseURL(getHeader(event, 'referer'))
 
@@ -134,8 +137,7 @@ export function collectAccessLog(event: H3Event): AccessLogResult | undefined {
     device: [ExtraDevices.device || []].flat(),
   })).getResult()
 
-  const { cloudflare } = event.context
-  const { request: { cf } } = cloudflare
+  const cf = getRequestGeo(event)
   const link = event.context.link || {}
 
   const isBot = cf?.botManagement?.verifiedBot
@@ -187,11 +189,10 @@ export function collectAccessLog(event: H3Event): AccessLogResult | undefined {
 }
 
 export function writeAccessLog(event: H3Event, accessLogs: LogsMap): void {
-  const { cloudflare } = event.context
   const link = event.context.link || {}
 
-  if (process.env.NODE_ENV === 'production') {
-    const analytics = cloudflare.env.ANALYTICS
+  if (event.context.selfHosted || process.env.NODE_ENV === 'production') {
+    const analytics = getStorage(event).ANALYTICS
     if (!analytics)
       return
 

@@ -3,7 +3,7 @@ import { SlugSchema } from '#shared/schemas/link'
 const slugValidator = SlugSchema
 
 export default eventHandler(async (event) => {
-  const R2 = requireR2Bucket(event.context.cloudflare.env)
+  const R2 = requireR2Bucket(getStorage(event))
   const key = getRouterParam(event, 'key')
 
   if (!key) {

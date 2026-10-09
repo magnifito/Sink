@@ -35,10 +35,10 @@ describe('public runtime config overrides', () => {
     expect(data.link.proxy).toBe(true)
   })
 
-  it('redirects / when NUXT_PUBLIC_HOME_URL is set', async () => {
+  it.each(['/', '/?source=test'])('redirects %s when NUXT_PUBLIC_HOME_URL is set', async (path) => {
     env.NUXT_PUBLIC_HOME_URL = 'https://home.example.com'
 
-    const response = await fetch('/', { redirect: 'manual' })
+    const response = await fetch(path, { redirect: 'manual' })
     expect(response.status).toBe(302)
     expect(response.headers.get('location')).toBe('https://home.example.com')
   })

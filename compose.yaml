@@ -1,0 +1,23 @@
+services:
+  sink:
+    build: .
+    restart: unless-stopped
+    init: true
+    stop_grace_period: 30s
+    env_file:
+      - path: .env.docker
+        required: false
+    ports:
+      - '127.0.0.1:${SINK_PORT:-7466}:3000'
+    environment:
+      NUXT_SITE_TOKEN: ${NUXT_SITE_TOKEN:?Set a private token with at least 32 characters}
+      NUXT_DATA_DIR: /data
+      NUXT_PUBLIC_PREVIEW_MODE: ''
+      NUXT_TRUST_PROXY: ${NUXT_TRUST_PROXY:-false}
+      NUXT_ANALYTICS_RETENTION_DAYS: ${NUXT_ANALYTICS_RETENTION_DAYS:-90}
+      NUXT_DISABLE_AUTO_BACKUP: ${NUXT_DISABLE_AUTO_BACKUP:-false}
+    volumes:
+      - sink_data:/data
+
+volumes:
+  sink_data:

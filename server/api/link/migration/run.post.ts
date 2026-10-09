@@ -81,7 +81,7 @@ function completedResult(): LinkMigrationRunResult {
 export default eventHandler(async (event): Promise<LinkMigrationRunResult> => {
   const body = await readBody<Record<string, unknown> | null>(event)
   const input = LinkMigrationRunSchema.parse(Object.assign({}, getQuery(event), body))
-  const { DB, KV } = event.context.cloudflare.env
+  const { DB, KV } = getStorage(event)
   const db = drizzle(DB)
   const now = Math.floor(Date.now() / 1000)
   let run: MigrationRunRow | null
@@ -96,7 +96,7 @@ export default eventHandler(async (event): Promise<LinkMigrationRunResult> => {
       throw createError({ status: 400, statusText: 'Migration cursor does not match force mode' })
   }
   else {
-    const completedRun = await readCompletedLinkMigrationMarker(event.context.cloudflare.env)
+    const completedRun = await readCompletedLinkMigrationMarker(getStorage(event))
     if (completedRun && !input.force)
       return completedResult()
 

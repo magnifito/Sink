@@ -1,0 +1,16 @@
+node_modules
+.git
+.nuxt
+.output
+.wrangler
+.env
+.env.*
+.dev.*
+data
+backups
+logs
+dist
+.DS_Store
+docs/node_modules
+docs/.vitepress/cache
+docs/.vitepress/dist

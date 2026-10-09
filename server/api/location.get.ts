@@ -10,8 +10,7 @@ defineRouteMeta({
 })
 
 export default eventHandler((event) => {
-  const { cloudflare } = event.context
-  const { request: { cf } } = cloudflare
+  const cf = getRequestGeo(event)
   return {
     latitude: cf?.latitude,
     longitude: cf?.longitude,

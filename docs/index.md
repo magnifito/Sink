@@ -1,12 +1,12 @@
 ---
 layout: home
 title: Sink Documentation
-description: A Simple, Speedy, Secure, and Serverless Link Shortener with Analytics, Running Entirely on Cloudflare.
+description: A Simple, Speedy, Secure Link Shortener with Analytics. Runs on Cloudflare or Docker.
 
 hero:
   name: Sink
   text: Simple / Speedy / Secure
-  tagline: A Simple, Speedy, Secure, and Serverless Link Shortener with Analytics, Running Entirely on Cloudflare.
+  tagline: A Simple, Speedy, Secure Link Shortener with Analytics. Runs on Cloudflare or Docker.
   actions:
     - theme: brand
       text: Get Started
@@ -19,9 +19,9 @@ hero:
       link: /api/
 
 features:
-  - title: Runs on Cloudflare
+  - title: Cloudflare or Docker
     icon: ☁️
-    details: Deploy to Workers or Pages. You need a database (D1) and a fast cache (KV); analytics, file storage, and AI are optional.
+    details: Deploy to Workers or Pages, or run a Docker container with SQLite, local files, and local analytics on your own server.
   - title: Link management
     icon: 🔗
     details: Add expiration, passwords, warnings, tags, and device or country routing when you need them.

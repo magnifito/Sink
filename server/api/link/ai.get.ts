@@ -43,8 +43,7 @@ export default eventHandler(async (event) => {
   const url = (await getValidatedQuery(event, z.object({
     url: z.url(),
   }).parse)).url
-  const { cloudflare } = event.context
-  const { AI } = cloudflare.env
+  const { AI } = getStorage(event)
 
   if (!AI) {
     throw createError({ status: 501, statusText: 'AI not enabled' })

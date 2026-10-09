@@ -1,6 +1,11 @@
 # ⚡ Sink
 
-**A Simple, Speedy, Secure, and Serverless Link Shortener with Analytics, Running Entirely on Cloudflare.**
+**A Simple, Speedy, Secure Link Shortener with Analytics. Runs on Cloudflare or your own Docker host.**
+
+An optional Docker deployment uses SQLite, local file storage, and local click
+analytics without a Cloudflare account. Cloudflare remains the default deployment
+target. See the
+[Docker deployment guide](docs/deployment/docker.md).
 
 [Website](https://sink.cool) · [Documentation](https://docs.sink.cool) · [API Reference](https://sink.cool/_docs/scalar)
 
