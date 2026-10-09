@@ -2,7 +2,7 @@ import type { DatabaseSync } from 'node:sqlite'
 import { Buffer } from 'node:buffer'
 import { randomUUID } from 'node:crypto'
 import { createReadStream, createWriteStream } from 'node:fs'
-import { mkdir, rm } from 'node:fs/promises'
+import { mkdir, readdir, rm } from 'node:fs/promises'
 import { join } from 'node:path'
 import { Readable } from 'node:stream'
 import { pipeline } from 'node:stream/promises'
@@ -26,6 +26,17 @@ function source(body: Body): Readable {
 export class LocalBucket {
   constructor(readonly directory: string, readonly db: DatabaseSync) {
     db.exec('CREATE TABLE IF NOT EXISTS sink_objects (key TEXT PRIMARY KEY, filename TEXT NOT NULL, metadata TEXT NOT NULL)')
+  }
+
+  async cleanStagedUploads() {
+    try {
+      const entries = await readdir(this.directory, { withFileTypes: true })
+      for (const entry of entries) {
+        if (entry.isDirectory() && entry.name.startsWith('upload-'))
+          await rm(join(this.directory, entry.name), { recursive: true, force: true })
+      }
+    }
+    catch {}
   }
 
   async put(key: string, body: Body, metadata: Metadata = {}) {

@@ -31,6 +31,14 @@ describe('node storage boundary', () => {
     expect(await db.prepare('SELECT count(*) AS count FROM sink_migrations').first('count')).toBe(migrations.length)
     expect(await db.prepare('SELECT status FROM link_migration_runs').first('status')).toBe('completed')
     expect(() => db.migrate([{ ...migrations[0]!, sql: `${migrations[0]!.sql}\n-- changed` }])).toThrow('Applied migration changed')
+    // CRLF normalization ensures Windows-style checkouts match recorded hash
+    expect(() => db.migrate([{ ...migrations[0]!, sql: migrations[0]!.sql.replace(/\n/g, '\r\n') }])).not.toThrow()
+  })
+
+  it('binds undefined parameters as null without throwing', async () => {
+    const { db } = await store()
+    const isNull = await db.prepare('SELECT (? IS NULL) AS is_null').bind(undefined).first('is_null')
+    expect(isNull).toBe(1)
   })
 
   it('rolls back all writes in a failed batch', async () => {
@@ -81,10 +89,21 @@ describe('node storage boundary', () => {
     expect(await readdir(join(directory, 'objects'))).toEqual([])
   })
 
+  it('cleans up abandoned multipart staging directories', async () => {
+    const { db, directory } = await store()
+    const bucket = new LocalBucket(join(directory, 'objects'), db.sqlite)
+    await bucket.createMultipartUpload('abandoned')
+    expect((await readdir(join(directory, 'objects'))).some(n => n.startsWith('upload-'))).toBe(true)
+    await bucket.cleanStagedUploads()
+    expect(await readdir(join(directory, 'objects'))).toEqual([])
+  })
+
   it('handles timezone and DST buckets and removes only expired events', async () => {
     const { db } = await store()
     const analytics = setupAnalytics(db.sqlite)
     analytics.writeDataPoint({ indexes: ['link'], blobs: ['slug'] })
+    const latestEvent = analytics.query('SELECT timestamp FROM sink_events ORDER BY event_id DESC LIMIT 1').data[0] as { timestamp: string }
+    expect(latestEvent.timestamp).toMatch(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/)
     db.sqlite.prepare('INSERT INTO sink_events (timestamp, index1) VALUES (?, ?)').run('2000-01-01 00:00:00', 'old')
     analytics.prune(90)
     expect(analytics.query('SELECT count(*) AS count FROM sink_events').data[0]?.count).toBe(1)

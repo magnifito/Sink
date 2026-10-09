@@ -36,6 +36,7 @@ async function initialize(nitroApp: NitroApp) {
   database.migrate(await Promise.all(keys.map(async name => ({ name, sql: String(await assets.getItem(name)) }))))
   const analytics = setupAnalytics(database.sqlite)
   const bucket = new LocalBucket(join(directory, 'objects'), database.sqlite)
+  await bucket.cleanStagedUploads()
 
   // SQLite reads are local. Bypass the remote KV cache and its legacy fallback.
   const bindings = {

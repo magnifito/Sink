@@ -1,17 +1,28 @@
 import type { DatabaseSync, SQLInputValue } from 'node:sqlite'
 
+const formatters = new Map<string, Intl.DateTimeFormat>()
+
+function getFormatter(timeZone: string) {
+  let formatter = formatters.get(timeZone)
+  if (!formatter) {
+    formatter = new Intl.DateTimeFormat('en-GB', {
+      timeZone,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hourCycle: 'h23',
+    })
+    formatters.set(timeZone, formatter)
+  }
+  return formatter
+}
+
 function parts(value: string, timeZone: string) {
   const date = new Date(`${value.replace(' ', 'T')}Z`)
-  return Object.fromEntries(new Intl.DateTimeFormat('en-GB', {
-    timeZone,
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-    hourCycle: 'h23',
-  }).formatToParts(date).map(part => [part.type, part.value]))
+  return Object.fromEntries(getFormatter(timeZone).formatToParts(date).map(part => [part.type, part.value]))
 }
 
 export function setupAnalytics(db: DatabaseSync) {
@@ -45,7 +56,7 @@ export function setupAnalytics(db: DatabaseSync) {
   return {
     writeDataPoint(point: { indexes?: string[], blobs?: string[], doubles?: number[] }) {
       insert.run(
-        new Date().toISOString().replace('T', ' ').replace('Z', ''),
+        new Date().toISOString().slice(0, 19).replace('T', ' '),
         point.indexes?.[0] ?? '',
         ...blobs.map((_, i) => point.blobs?.[i] ?? ''),
         point.doubles?.[0] ?? 0,
@@ -54,7 +65,7 @@ export function setupAnalytics(db: DatabaseSync) {
     },
     query(sql: string) { return { data: db.prepare(sql).all() } },
     prune(days: number) {
-      const cutoff = new Date(Date.now() - days * 86400_000).toISOString().replace('T', ' ').replace('Z', '')
+      const cutoff = new Date(Date.now() - days * 86400_000).toISOString().slice(0, 19).replace('T', ' ')
       db.prepare('DELETE FROM sink_events WHERE timestamp < ?').run(cutoff)
     },
   }

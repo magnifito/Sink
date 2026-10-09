@@ -4,9 +4,13 @@ import { DatabaseSync } from 'node:sqlite'
 
 /** Compatibility boundary for the existing Drizzle D1 driver and atomic batches. */
 export class LocalStatement {
-  constructor(readonly db: DatabaseSync, readonly sql: string, readonly params: SQLInputValue[] = []) {}
+  readonly params: SQLInputValue[]
 
-  bind(...params: SQLInputValue[]) {
+  constructor(readonly db: DatabaseSync, readonly sql: string, params: (SQLInputValue | undefined)[] = []) {
+    this.params = params.map(p => (p === undefined ? null : p)) as SQLInputValue[]
+  }
+
+  bind(...params: (SQLInputValue | undefined)[]) {
     return new LocalStatement(this.db, this.sql, params)
   }
 
@@ -58,7 +62,8 @@ export class LocalDatabase {
   migrate(migrations: { name: string, sql: string }[]) {
     this.sqlite.exec('CREATE TABLE IF NOT EXISTS sink_migrations (name TEXT PRIMARY KEY, hash TEXT NOT NULL)')
     for (const migration of migrations.sort((a, b) => a.name.localeCompare(b.name))) {
-      const hash = createHash('sha256').update(migration.sql).digest('hex')
+      const normalizedSql = migration.sql.replace(/\r\n/g, '\n')
+      const hash = createHash('sha256').update(normalizedSql).digest('hex')
       const previous = this.sqlite.prepare('SELECT hash FROM sink_migrations WHERE name = ?').get(migration.name)
       if (previous) {
         if (previous.hash !== hash)
@@ -67,7 +72,7 @@ export class LocalDatabase {
       }
       this.sqlite.exec('BEGIN IMMEDIATE')
       try {
-        this.sqlite.exec(migration.sql)
+        this.sqlite.exec(normalizedSql)
         this.sqlite.prepare('INSERT INTO sink_migrations VALUES (?, ?)').run(migration.name, hash)
         this.sqlite.exec('COMMIT')
       }
