@@ -68,6 +68,12 @@ replace untrusted forwarded headers with the real client IP and request protocol
 Keep the app reachable only through that proxy. Leave this setting off for direct
 access. DNS and TLS can use any provider.
 
+If a CDN or another proxy sits in front of your reverse proxy, configure the
+reverse proxy to trust only that upstream's published IP ranges and to take the
+client IP from its forwarded header. Otherwise Sink records the upstream's edge
+address, and visitor counts, geo reports and country redirects reflect the CDN
+location instead of the visitor.
+
 ## Features and limits
 
 | Feature                                                    | Docker behavior                                                                    |
