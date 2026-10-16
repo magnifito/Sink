@@ -1,5 +1,7 @@
 services:
   sink:
+    # Set SINK_IMAGE to a published image tag to pull instead of building locally.
+    image: ${SINK_IMAGE:-sink:local}
     build: .
     restart: unless-stopped
     init: true
@@ -16,6 +18,9 @@ services:
       NUXT_TRUST_PROXY: ${NUXT_TRUST_PROXY:-false}
       NUXT_ANALYTICS_RETENTION_DAYS: ${NUXT_ANALYTICS_RETENTION_DAYS:-90}
       NUXT_DISABLE_AUTO_BACKUP: ${NUXT_DISABLE_AUTO_BACKUP:-false}
+      NUXT_BACKUP_RETENTION_DAYS: ${NUXT_BACKUP_RETENTION_DAYS:-30}
+      NUXT_SNAPSHOT_KEEP: ${NUXT_SNAPSHOT_KEEP:-7}
+      NUXT_ANALYTICS_HASH_IP: ${NUXT_ANALYTICS_HASH_IP:-false}
     volumes:
       - sink_data:/data
 

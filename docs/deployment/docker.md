@@ -31,6 +31,28 @@ normal upgrades.
 
 `GET /_health` checks database access. It returns no private data.
 
+## Use a prebuilt image
+
+The production build needs up to 8 GB of memory. To avoid building on a small
+server, the `docker-image` GitHub Actions workflow builds the image on each push
+to `master` and on `v*` tags. It publishes `ghcr.io/<owner>/sink` with the tags
+`latest`, the short commit SHA and the release version. Make the package public
+in GitHub, or log in to `ghcr.io` on the server, before pulling.
+
+Set the image in `.env.docker` and start without building:
+
+```dotenv
+SINK_IMAGE=ghcr.io/<owner>/sink:latest
+```
+
+```bash
+docker compose --env-file .env.docker pull sink
+docker compose --env-file .env.docker up -d --no-build
+```
+
+Pin a SHA or version tag instead of `latest` to roll back to a known image.
+Without `SINK_IMAGE`, Compose builds the local `sink:local` image as before.
+
 ## Redirect the homepage
 
 To redirect visitors to your main website instead of showing the Sink homepage,
@@ -84,7 +106,9 @@ location instead of the visitor.
 | Images                                                     | Files under `/data/objects`; SQLite maps object keys to opaque filenames           |
 | Click analytics and realtime dashboard                     | Local, unsampled records; same filters and timezone buckets                        |
 | Analytics retention                                        | 90 days by default; set `NUXT_ANALYTICS_RETENTION_DAYS` to a positive integer      |
-| Link backups                                               | Automatic once per UTC day while running; manual backup also works                 |
+| Link backups                                               | Automatic once per UTC day; Compose keeps 30 days. Manual backups are kept         |
+| Database snapshots                                         | Daily consistent copy in `/data/snapshots`; Compose keeps the newest 7             |
+| Visitor IP storage                                         | Raw IP by default; set `NUXT_ANALYTICS_HASH_IP=true` to store a keyed hash         |
 | Webhooks                                                   | Uses the configured URL and secret; graceful shutdown waits for in-flight delivery |
 | AI slug and metadata generation                            | Disabled; endpoints return `501 AI not enabled`. Enter values manually             |
 | Geo routing, city/country analytics, globe locations       | Uses an optional local City or Country MMDB database; see setup below              |
@@ -92,6 +116,13 @@ location instead of the visitor.
 Cloudflare IP geolocation and Workers AI are not available merely because the
 site's DNS uses Cloudflare. The Node app does not trust arbitrary geo headers.
 Browser, device, referrer, language, visit counts, and time charts still work.
+
+With `NUXT_ANALYTICS_HASH_IP=true`, Sink stores an HMAC-SHA256 hash of the visitor
+IP keyed with `NUXT_SITE_TOKEN` instead of the raw address. Unique visitor counts
+keep working because the same IP gives the same hash. Geo lookup uses the raw IP
+in memory during the request and does not store it. Changing the setting or the
+token starts a new visitor identity, so unique counts across that date overlap.
+Existing records keep their stored value until analytics retention removes them.
 
 ## Local geo lookup
 
@@ -150,8 +181,8 @@ This product includes GeoLite2 data created by MaxMind, available from
 [database update guide](https://dev.maxmind.com/geoip/updating-databases/) and
 [official updater Docker setup](https://github.com/maxmind/geoipupdate/blob/main/doc/docker.md).
 IP location is approximate; do not use it as an access control. Geo lookup does
-not require storing raw IPs, but the existing analytics collector still stores
-them. This feature does not change analytics privacy policy.
+not require storing raw IPs. The analytics collector stores them unless
+`NUXT_ANALYTICS_HASH_IP=true` is set.
 
 This is independent hosting, not offline browsing: user-supplied link targets,
 configured webhooks, and the app's existing external favicon/marketing assets can
@@ -162,10 +193,22 @@ still make network requests.
 Automatic link backups contain links and tags, not analytics or image files.
 They use the same persistent volume and do not protect against loss of the host.
 Object filenames are opaque; use the app's link export for a portable JSON export.
-Keep copies of the complete volume outside the host. Monitor disk space and
-rotate old backup objects; automatic link backups do not currently expire.
+Keep copies of the complete volume outside the host. Monitor disk space.
+`NUXT_BACKUP_RETENTION_DAYS` deletes automatic link backups older than the given
+number of days; Compose sets 30 and `0` keeps all. Manual backups never expire.
 
-For a complete, consistent volume snapshot, stop the app before copying `/data`:
+Once per UTC day Sink also writes a consistent copy of the database to
+`/data/snapshots/sink-YYYY-MM-DD.sqlite` with SQLite `VACUUM INTO`. The copy
+includes committed WAL data, so a file-level or volume backup tool can copy
+`/data` while the app runs. Restore from the newest snapshot file, not from
+`sink.sqlite`, which can be mid-write. `NUXT_SNAPSHOT_KEEP` sets how many daily
+snapshots to keep; Compose sets 7 and `0` disables them. The snapshot holds
+links, tags, analytics and the object index. Image files stay in
+`/data/objects`; images uploaded after the snapshot become unused files, and
+images deleted after it are missing from the restore. The copy briefly blocks
+requests while it runs, so large analytics tables make it take longer.
+
+For an exact copy of the whole volume, stop the app before copying `/data`:
 
 ```bash
 mkdir -p backups
@@ -179,9 +222,12 @@ stop a fresh container, copy the snapshot contents into its `/data`, set ownersh
 to UID/GID `1000:1000`, then start the matching app image. The SQLite database and
 the `objects` directory must come from the same snapshot. Do not copy only the
 main SQLite file while the app is running; WAL files can hold committed writes.
+To restore from a daily snapshot instead, stop the app, replace `sink.sqlite`
+with the snapshot file, delete `sink.sqlite-wal` and `sink.sqlite-shm`, and
+start the app.
 
 Before an upgrade, save both the volume snapshot and the previous image tag.
-Rebuild and replace the container. Check health and a short link. To roll back
+Rebuild or pull, then replace the container. Check health and a short link. To roll back
 across a schema change, restore the matching snapshot and previous image together.
 
 To move existing Cloudflare links, export them from the old dashboard and import

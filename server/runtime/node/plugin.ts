@@ -5,6 +5,7 @@ import { setupAnalytics } from './analytics'
 import { LocalBucket } from './bucket'
 import { LocalDatabase } from './database'
 import { LocalGeo } from './geo'
+import { parseKeepSetting, pruneLinkBackups, snapshotDatabase } from './maintenance'
 
 export default defineNitroPlugin((nitroApp) => {
   const ready = initialize(nitroApp)
@@ -28,6 +29,8 @@ async function initialize(nitroApp: NitroApp) {
   const retentionDays = Number(config.analyticsRetentionDays)
   if (!Number.isInteger(retentionDays) || retentionDays < 1)
     throw new Error('NUXT_ANALYTICS_RETENTION_DAYS must be a positive integer')
+  const backupRetentionDays = parseKeepSetting(config.backupRetentionDays, 'NUXT_BACKUP_RETENTION_DAYS')
+  const snapshotKeep = parseKeepSetting(config.snapshotKeep, 'NUXT_SNAPSHOT_KEEP')
 
   const directory = resolve(config.dataDir)
   const geo = new LocalGeo(config.geoDatabasePath ? resolve(config.geoDatabasePath) : '')
@@ -64,7 +67,7 @@ async function initialize(nitroApp: NitroApp) {
   }
 
   analytics.prune(retentionDays)
-  let lastBackupDay = ''
+  let lastMaintenanceDay = ''
   let maintenanceRunning = false
   async function maintenance() {
     if (maintenanceRunning)
@@ -74,11 +77,17 @@ async function initialize(nitroApp: NitroApp) {
       await geo.reload()
       analytics.prune(retentionDays)
       const today = new Date().toISOString().slice(0, 10)
-      if (!config.disableAutoBackup && today !== lastBackupDay) {
-        const existing = database.sqlite.prepare('SELECT 1 FROM sink_objects WHERE key LIKE ? AND key NOT LIKE \'%.pending-%\' LIMIT 1').get(`backups/links-${today}T%`)
-        if (!existing)
-          await backupLinksToR2(bindings)
-        lastBackupDay = today
+      if (today !== lastMaintenanceDay) {
+        if (!config.disableAutoBackup) {
+          const existing = database.sqlite.prepare('SELECT 1 FROM sink_objects WHERE key LIKE ? AND key NOT LIKE \'%.pending-%\' LIMIT 1').get(`backups/links-${today}T%`)
+          if (!existing)
+            await backupLinksToR2(bindings)
+        }
+        if (backupRetentionDays)
+          await pruneLinkBackups(database.sqlite, bucket, backupRetentionDays)
+        if (snapshotKeep)
+          await snapshotDatabase(database.sqlite, join(directory, 'snapshots'), snapshotKeep)
+        lastMaintenanceDay = today
       }
     }
     finally {

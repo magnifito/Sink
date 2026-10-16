@@ -41,6 +41,10 @@ provided Compose file. The image excludes local environment files.
 | `NUXT_DATA_DIR`                 | `./data`; `/data` in Docker | Persistent SQLite and file storage directory                |
 | `NUXT_ANALYTICS_RETENTION_DAYS` | `90`                        | Positive integer controlling local click retention          |
 | `NUXT_TRUST_PROXY`              | `false`                     | Accept the forwarded client IP from a trusted reverse proxy |
+| `NUXT_BACKUP_RETENTION_DAYS`    | `0`; `30` in Compose        | Days to keep automatic link backups; `0` keeps all          |
+| `NUXT_SNAPSHOT_KEEP`            | `0`; `7` in Compose         | Daily SQLite snapshots to keep; `0` disables snapshots      |
+| `NUXT_ANALYTICS_HASH_IP`        | `false`                     | Store a keyed hash instead of the raw visitor IP            |
+| `SINK_IMAGE`                    | `sink:local`                | Compose image tag; set it to pull a published image         |
 
 The shared runtime settings below still apply where the feature exists. Docker
 does not require Cloudflare binding IDs or analytics credentials. Node does not

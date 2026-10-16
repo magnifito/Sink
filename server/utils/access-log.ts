@@ -1,4 +1,5 @@
 import type { H3Event } from 'h3'
+import { createHmac } from 'node:crypto'
 import { parseAcceptLanguage } from 'intl-parse-accept-language'
 import { UAParser } from 'ua-parser-js'
 import {
@@ -117,10 +118,22 @@ function getCountryName(country?: string): string {
   }
 }
 
+/**
+ * Replaces the visitor IP with a keyed hash. Distinct visitor counts still work,
+ * but the stored value cannot be reversed without the site token.
+ */
+export function hashVisitorIp(ip: string | undefined, key: string): string | undefined {
+  if (!ip)
+    return ip
+  return createHmac('sha256', key).update(ip).digest('hex').slice(0, 32)
+}
+
 export function collectAccessLog(event: H3Event): AccessLogResult | undefined {
-  const ip = event.context.selfHosted
+  const { analyticsHashIp, siteToken } = useRuntimeConfig(event)
+  const requestIp = event.context.selfHosted
     ? getRequestIP(event, { xForwardedFor: useRuntimeConfig(event).trustProxy })
     : getHeader(event, 'cf-connecting-ip') || getHeader(event, 'x-real-ip') || getRequestIP(event, { xForwardedFor: true })
+  const ip = analyticsHashIp ? hashVisitorIp(requestIp, siteToken) : requestIp
 
   const { host: referer } = parseURL(getHeader(event, 'referer'))
 

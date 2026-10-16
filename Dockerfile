@@ -1,9 +1,12 @@
 FROM node:24-bookworm-slim AS build
 WORKDIR /app
 RUN npm install --global pnpm@11.11.0
-COPY . .
 ENV CI=true
-RUN pnpm install --frozen-lockfile
+# Download dependencies from the lockfile alone so source edits reuse this layer.
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+RUN pnpm fetch
+COPY . .
+RUN pnpm install --frozen-lockfile --offline
 RUN pnpm build:node
 
 FROM node:24-bookworm-slim AS runtime
