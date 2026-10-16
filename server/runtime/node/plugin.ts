@@ -4,11 +4,14 @@ import { join, resolve } from 'node:path'
 import { setupAnalytics } from './analytics'
 import { LocalBucket } from './bucket'
 import { LocalDatabase } from './database'
+import { LocalGeo } from './geo'
 
 export default defineNitroPlugin((nitroApp) => {
   const ready = initialize(nitroApp)
   nitroApp.hooks.hook('request', async (event) => {
-    event.context.selfHosted = await ready
+    const runtime = await ready
+    event.context.selfHosted = runtime
+    event.context.requestGeo = runtime.lookupGeo(getRequestIP(event, { xForwardedFor: useRuntimeConfig(event).trustProxy }))
   })
   void ready.catch((error) => {
     console.error('[node] Startup failed', error)
@@ -27,6 +30,8 @@ async function initialize(nitroApp: NitroApp) {
     throw new Error('NUXT_ANALYTICS_RETENTION_DAYS must be a positive integer')
 
   const directory = resolve(config.dataDir)
+  const geo = new LocalGeo(config.geoDatabasePath ? resolve(config.geoDatabasePath) : '')
+  await geo.reload()
   mkdirSync(directory, { recursive: true, mode: 0o700 })
   const database = new LocalDatabase(join(directory, 'sink.sqlite'))
   const assets = useStorage('assets:migrations')
@@ -66,6 +71,7 @@ async function initialize(nitroApp: NitroApp) {
       return
     maintenanceRunning = true
     try {
+      await geo.reload()
       analytics.prune(retentionDays)
       const today = new Date().toISOString().slice(0, 10)
       if (!config.disableAutoBackup && today !== lastBackupDay) {
@@ -86,5 +92,5 @@ async function initialize(nitroApp: NitroApp) {
     await Promise.allSettled([...pending])
     database.close()
   })
-  return { bindings, queryAnalytics: analytics.query, waitUntil }
+  return { bindings, queryAnalytics: analytics.query, waitUntil, lookupGeo: (ip?: string) => geo.lookup(ip), geoStatus: () => geo.status() }
 }

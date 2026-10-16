@@ -1,14 +1,17 @@
 import type { H3Event } from 'h3'
+import type { GeoStatus, RequestGeo } from '#shared/types/geo'
 
 export interface SelfHostedRuntime {
   bindings: Cloudflare.Env
   queryAnalytics: (sql: string) => { data: unknown[] }
   waitUntil: (promise: Promise<unknown>) => void
+  geoStatus?: () => GeoStatus
 }
 
 declare module 'h3' {
   interface H3EventContext {
     selfHosted?: SelfHostedRuntime
+    requestGeo?: RequestGeo
   }
 }
 
@@ -19,5 +22,7 @@ export function getStorage(event: H3Event): Cloudflare.Env {
 
 export function getRequestGeo(event: H3Event) {
   // Never accept client-supplied geo headers as trusted location data on Node.
+  if (event.context.selfHosted)
+    return event.context.requestGeo
   return event.context.cloudflare?.request?.cf
 }

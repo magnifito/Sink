@@ -2,10 +2,10 @@ import assert from 'node:assert/strict'
 import { spawn } from 'node:child_process'
 import { randomBytes } from 'node:crypto'
 import { once } from 'node:events'
-import { mkdtemp, readFile, rm } from 'node:fs/promises'
+import { copyFile, mkdtemp, readFile, rename, rm } from 'node:fs/promises'
 import { createServer } from 'node:net'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { join, resolve } from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
 import { setTimeout as delay } from 'node:timers/promises'
 
@@ -121,6 +121,10 @@ try {
   await request('/dashboard/links', { auth: false })
   await request('/api/link/list', { auth: false, expected: 401 })
   await request('/api/verify')
+  if (!external) {
+    assert.equal((await (await request('/api/geo/status')).json()).state, 'disabled')
+    await request('/api/geo/status', { auth: false, expected: 401 })
+  }
   const { link } = await create({ tags: ['docker-test'], redirectWithQuery: true })
   await request('/api/link/create', { method: 'POST', expected: 409, json: { slug: link.slug, url: 'https://other.example/' } })
   const redirect = await request(`/${link.slug}?source=test`, { auth: false, expected: 301 })
@@ -194,6 +198,64 @@ try {
   for (const slug of slugs)
     await request('/api/link/delete', { method: 'POST', expected: 204, json: { slug } })
   await request(`/${link.slug}`, { auth: false, expected: 404 })
+  if (!external) {
+    await stop()
+    serverEnv.NUXT_GEO_DATABASE_PATH = join(directory, 'geo.mmdb')
+    await copyFile(resolve('tests/fixtures/geo/GeoIP2-City-Test.mmdb'), serverEnv.NUXT_GEO_DATABASE_PATH)
+    serverEnv.NUXT_TRUST_PROXY = 'true'
+    await start()
+    const status = await (await request('/api/geo/status')).json()
+    assert.equal(status.state, 'ready')
+    assert.equal(status.databaseType, 'GeoIP2-City')
+    assert(!JSON.stringify(status).includes(serverEnv.NUXT_GEO_DATABASE_PATH))
+    const { link: geoLink } = await create({ geo: { GB: 'https://example.org/gb', JP: 'https://example.org/jp' } })
+    const geoHeaders = { 'x-forwarded-for': '81.2.69.142', 'cf-ipcountry': 'US', 'cf-iplatitude': '1', 'cf-iplongitude': '1' }
+    const gb = await request(`/${geoLink.slug}`, { auth: false, expected: 301, headers: geoHeaders })
+    assert.equal(gb.headers.get('location'), 'https://example.org/gb')
+    const jp = await request(`/${geoLink.slug}`, { auth: false, expected: 301, headers: { 'x-forwarded-for': '2001:218::' } })
+    assert.equal(jp.headers.get('location'), 'https://example.org/jp')
+    const privateIP = await request(`/${geoLink.slug}`, { auth: false, expected: 301, headers: { 'x-forwarded-for': '10.0.0.1' } })
+    assert.equal(privateIP.headers.get('location'), 'https://example.com/')
+    const location = await (await request('/api/location', { headers: geoHeaders })).json()
+    assert.deepEqual(location, { latitude: '51.5142', longitude: '-0.0931' })
+    const geoEvents = await (await request(`/api/logs/events?id=${geoLink.id}`)).json()
+    assert(geoEvents.some(event => event.country === 'GB' && event.city.includes('London')))
+    const places = await (await request(`/api/logs/locations?id=${geoLink.id}`)).json()
+    assert(places.data.some(place => Number(place.latitude) === 51.5142 && Number(place.longitude) === -0.0931))
+    await copyFile(resolve('tests/fixtures/geo/GeoLite2-Country-Test.mmdb'), `${serverEnv.NUXT_GEO_DATABASE_PATH}.new`)
+    await rename(`${serverEnv.NUXT_GEO_DATABASE_PATH}.new`, serverEnv.NUXT_GEO_DATABASE_PATH)
+    // Exercise the production maintenance timer rather than only the reader class.
+    const deadline = Date.now() + 75_000
+    let reloaded = false
+    while (Date.now() < deadline) {
+      const current = await (await request('/api/geo/status')).json()
+      if (current.databaseType === 'GeoLite2-Country') {
+        reloaded = true
+        break
+      }
+      await delay(1000)
+    }
+    assert(reloaded, 'Geo database did not reload within 75 seconds')
+    assert.deepEqual(await (await request('/api/location', { headers: geoHeaders })).json(), {})
+    const countryOnly = await request(`/${geoLink.slug}`, { auth: false, expected: 301, headers: geoHeaders })
+    assert.equal(countryOnly.headers.get('location'), 'https://example.org/gb')
+    await stop()
+    serverEnv.NUXT_TRUST_PROXY = 'false'
+    await start()
+    const untrusted = await request(`/${geoLink.slug}`, { auth: false, expected: 301, headers: geoHeaders })
+    assert.equal(untrusted.headers.get('location'), 'https://example.com/')
+    assert.deepEqual(await (await request('/api/location', { headers: geoHeaders })).json(), {})
+    const untrustedPlaces = await (await request(`/api/logs/locations?id=${geoLink.id}`)).json()
+    assert(!untrustedPlaces.data.some(place => Number(place.latitude) === 1))
+    await stop()
+    serverEnv.NUXT_GEO_DATABASE_PATH = join(directory, 'missing.mmdb')
+    serverEnv.NUXT_TRUST_PROXY = 'true'
+    await start()
+    assert.equal((await (await request('/api/geo/status')).json()).state, 'unavailable')
+    const missingGeo = await request(`/${geoLink.slug}`, { auth: false, expected: 301, headers: geoHeaders })
+    assert.equal(missingGeo.headers.get('location'), 'https://example.com/')
+    await request('/api/link/delete', { method: 'POST', expected: 204, json: { slug: geoLink.slug } })
+  }
   console.log(`PASS: ${checks} checks; links, auth, analytics, images, backup, import/export${external ? '' : ', and restart persistence'}`)
 }
 finally {

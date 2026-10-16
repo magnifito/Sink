@@ -1,0 +1,22 @@
+# Optional local geo database and the official MaxMind updater.
+# Run together with compose.yaml; no credentials enter the Sink container.
+services:
+  sink:
+    environment:
+      NUXT_GEO_DATABASE_PATH: /geo/GeoLite2-City.mmdb
+    volumes:
+      - sink_geo:/geo:ro
+
+  geoipupdate:
+    image: ghcr.io/maxmind/geoipupdate:v8.0.0
+    restart: unless-stopped
+    environment:
+      GEOIPUPDATE_ACCOUNT_ID: ${GEOIPUPDATE_ACCOUNT_ID:?Set your MaxMind account ID}
+      GEOIPUPDATE_LICENSE_KEY: ${GEOIPUPDATE_LICENSE_KEY:?Set your MaxMind license key}
+      GEOIPUPDATE_EDITION_IDS: GeoLite2-City
+      GEOIPUPDATE_FREQUENCY: '24'
+    volumes:
+      - sink_geo:/usr/share/GeoIP
+
+volumes:
+  sink_geo:

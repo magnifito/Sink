@@ -22,6 +22,7 @@ export default defineNuxtConfig({
     dataDir: './data',
     analyticsRetentionDays: 90,
     trustProxy: false,
+    geoDatabasePath: '',
     cfAccessTeamDomain: '',
     cfAccessAud: '',
     redirectStatusCode: '301',

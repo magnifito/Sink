@@ -170,8 +170,8 @@ export function collectAccessLog(event: H3Event): AccessLogResult | undefined {
     COLO: cf?.colo,
 
     // For RealTime Globe
-    latitude: Number(cf?.latitude || getHeader(event, 'cf-iplatitude') || 0),
-    longitude: Number(cf?.longitude || getHeader(event, 'cf-iplongitude') || 0),
+    latitude: Number(cf?.latitude || (!event.context.selfHosted && getHeader(event, 'cf-iplatitude')) || 0),
+    longitude: Number(cf?.longitude || (!event.context.selfHosted && getHeader(event, 'cf-iplongitude')) || 0),
   }
 
   return {
