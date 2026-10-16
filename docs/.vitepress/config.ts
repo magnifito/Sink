@@ -65,6 +65,7 @@ export default defineConfig({
               { text: 'Links', link: '/features/links' },
               { text: 'Analytics and Realtime', link: '/features/analytics' },
               { text: 'Workers AI', link: '/features/ai' },
+              { text: 'Future Plan & Roadmap', link: '/features/roadmap' },
             ] },
             { text: 'Operations', items: [
               { text: 'Import and Export', link: '/features/import-export' },
@@ -124,6 +125,7 @@ export default defineConfig({
               { text: '链接', link: '/zh-CN/features/links' },
               { text: '分析与实时视图', link: '/zh-CN/features/analytics' },
               { text: 'Workers AI', link: '/zh-CN/features/ai' },
+              { text: '未来路线图与规划', link: '/zh-CN/features/roadmap' },
             ] },
             { text: '运维', items: [
               { text: '导入与导出', link: '/zh-CN/features/import-export' },
